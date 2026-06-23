@@ -43,19 +43,21 @@ export default function SimulateRoute({ state, dispatch }) {
     dispatch({ type: 'SET_SIM_STATION', payload: i });
   }
 
-  function handleStationComplete() {
-    dispatch({ type: 'COMPLETE_SIM_STATION', payload: activeIdx });
-    stopNarration();
-    // Move to the next station if there is one, otherwise stay on current
-    if (activeIdx < 3) {
-      dispatch({ type: 'SET_SIM_STATION', payload: activeIdx + 1 });
-    }
-  }
-
   function handleContinueToPlay() {
     stopNarration();
     dispatch({ type: 'COMPLETE_SIMULATE' });
     navigate('/play');
+  }
+
+  function handleStationComplete() {
+    dispatch({ type: 'COMPLETE_SIM_STATION', payload: activeIdx });
+    stopNarration();
+    // Move to the next station if there is one, otherwise transition to play
+    if (activeIdx < 3) {
+      dispatch({ type: 'SET_SIM_STATION', payload: activeIdx + 1 });
+    } else {
+      handleContinueToPlay();
+    }
   }
 
   return (
@@ -119,7 +121,7 @@ export default function SimulateRoute({ state, dispatch }) {
             </span>
           </div>
 
-          {allDone ? (
+          {(allDone || activeIdx === 3) ? (
             <button className="btn-primary" onClick={handleContinueToPlay}
               style={{ marginTop: 0 }}>
               🎮 Let's Play!
