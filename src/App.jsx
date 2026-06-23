@@ -3,8 +3,17 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { generateSessionQuestions } from './utils/shuffle.js';
 import { calcXP, calcStars, canUnlockWorld, calcStreakMultiplier } from './utils/scoring.js';
 import { checkBadges } from './utils/badgeEngine.js';
-import { setAudioEnabled } from './utils/audio.js';
+import { setAudioEnabled, setLowEndMode } from './utils/audio.js';
 import QUESTIONS from './data/questionBank.js';
+
+// Heuristic to detect low-end or battery-saving devices
+function isLowEndDevice() {
+  if (typeof window === 'undefined') return false;
+  const concurrency = navigator.hardwareConcurrency || 4;
+  const memory = navigator.deviceMemory || 4; // in GB
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return concurrency < 4 || memory < 4 || prefersReducedMotion;
+}
 
 // ─── Routes (lazy-loaded for perf) ───────────────────────────────────────────
 import LandingRoute  from './routes/LandingRoute.jsx';
@@ -58,6 +67,7 @@ const initialState = {
   // Session
   sessionId: null,
   audioEnabled: true,
+  lowEndMode: false,
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -301,6 +311,28 @@ function reducer(state, action) {
       return { ...state, audioEnabled: next };
     }
 
+    case 'SET_LOW_END_MODE': {
+      const val = action.payload;
+      setLowEndMode(val);
+      if (val) {
+        document.body.classList.add('low-end-mode');
+      } else {
+        document.body.classList.remove('low-end-mode');
+      }
+      return { ...state, lowEndMode: val };
+    }
+
+    case 'TOGGLE_LOW_END_MODE': {
+      const next = !state.lowEndMode;
+      setLowEndMode(next);
+      if (next) {
+        document.body.classList.add('low-end-mode');
+      } else {
+        document.body.classList.remove('low-end-mode');
+      }
+      return { ...state, lowEndMode: next };
+    }
+
     case 'RESTORE_SESSION':
       return { ...state, ...action.payload };
 
@@ -330,6 +362,7 @@ function saveSession(state) {
       phaseComplete: state.phaseComplete,
       simStationsComplete: state.simStationsComplete,
       audioEnabled: state.audioEnabled,
+      lowEndMode: state.lowEndMode,
       timestamp: Date.now(),
     }));
   } catch { /* localStorage not available */ }
@@ -351,7 +384,23 @@ export default function App() {
   useEffect(() => {
     dispatch({ type: 'INIT_SESSION' });
     const saved = loadSession();
-    if (saved) dispatch({ type: 'RESTORE_SESSION', payload: saved });
+    if (saved) {
+      const isLowEnd = saved.lowEndMode !== undefined ? saved.lowEndMode : isLowEndDevice();
+      dispatch({ type: 'RESTORE_SESSION', payload: { ...saved, lowEndMode: isLowEnd } });
+      setAudioEnabled(saved.audioEnabled !== false);
+      setLowEndMode(isLowEnd);
+      if (isLowEnd) {
+        document.body.classList.add('low-end-mode');
+      } else {
+        document.body.classList.remove('low-end-mode');
+      }
+    } else {
+      // Auto-detect performance capability for new users
+      const autoLowEnd = isLowEndDevice();
+      if (autoLowEnd) {
+        dispatch({ type: 'SET_LOW_END_MODE', payload: true });
+      }
+    }
   }, []);
 
   // Persist on state changes

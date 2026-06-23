@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate }     from 'react-router-dom';
 import PhaseTracker        from '../components/chrome/PhaseTracker.jsx';
 import HomePill            from '../components/chrome/HomePill.jsx';
-import AudioToggleFAB      from '../components/chrome/AudioToggleFAB.jsx';
+import SettingsFAB         from '../components/chrome/SettingsFAB.jsx';
 import ParticleBackground  from '../components/shared/ParticleBackground.jsx';
 import Mascot              from '../components/shared/Mascot.jsx';
 import { starsDisplay, calcStars } from '../utils/scoring.js';
@@ -133,7 +133,7 @@ export default function ReflectRoute({ state, dispatch }) {
 
   return (
     <div className="vp-shell">
-      <ParticleBackground intense={submitted} />
+      <ParticleBackground intense={submitted} lowEndMode={state.lowEndMode} />
 
       {/* Chrome */}
       <div className="vp-chrome">
@@ -231,9 +231,10 @@ export default function ReflectRoute({ state, dispatch }) {
         </div>
       </div>
 
-      <AudioToggleFAB
+      <SettingsFAB
         audioEnabled={state.audioEnabled}
-        onToggle={() => dispatch({ type: 'TOGGLE_AUDIO' })}
+        lowEndMode={state.lowEndMode}
+        dispatch={dispatch}
       />
     </div>
   );

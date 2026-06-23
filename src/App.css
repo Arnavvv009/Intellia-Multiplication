@@ -965,3 +965,153 @@ input[type="range"] { cursor: pointer; }
   .operand__value { font-size: 28px; }
   .answer-grid { gap: 7px; }
 }
+
+/* ============================================
+   LOW-END DEVICE MODE OVERRIDES
+   ============================================ */
+body.low-end-mode {
+  background: var(--bg-base) !important;
+}
+
+body.low-end-mode * {
+  animation: none !important;
+  transition: none !important;
+}
+
+body.low-end-mode .wonder-card,
+body.low-end-mode .story-card,
+body.low-end-mode .station-card,
+body.low-end-mode .question-card,
+body.low-end-mode .reflect-card,
+body.low-end-mode .completion-screen,
+body.low-end-mode .modal-card,
+body.low-end-mode .landing-card,
+body.low-end-mode .journey-map-panel,
+body.low-end-mode .phase-tracker,
+body.low-end-mode .home-pill,
+body.low-end-mode .audio-fab,
+body.low-end-mode .settings-fab,
+body.low-end-mode .settings-popup {
+  box-shadow: none !important;
+  border: 2px solid rgba(255, 255, 255, 0.18) !important;
+  text-shadow: none !important;
+}
+
+body.low-end-mode .btn-primary {
+  background: var(--accent-gold) !important;
+  box-shadow: none !important;
+}
+
+body.low-end-mode .btn-primary:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+body.low-end-mode .btn-secondary:hover {
+  transform: none !important;
+}
+
+body.low-end-mode .answer-btn:hover:not(:disabled) {
+  transform: none !important;
+}
+
+/* ============================================
+   SETTINGS MENU & POPUP
+   ============================================ */
+.settings-fab-container {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  z-index: 200;
+}
+
+.settings-fab {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-btn);
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  transition: transform 0.15s ease;
+}
+
+.settings-fab:hover {
+  transform: scale(1.08);
+}
+
+.settings-popup {
+  position: absolute;
+  bottom: 58px;
+  right: 0;
+  background: var(--surface-card);
+  border-radius: var(--radius-card-sm);
+  padding: 16px;
+  width: 260px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: slideInUp 0.25s ease;
+}
+
+.settings-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent-gold);
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: left;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-label-wrap {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.settings-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.settings-desc {
+  font-size: 9px;
+  color: var(--text-muted-lavender);
+  line-height: 1.25;
+  margin-top: 1px;
+}
+
+.settings-toggle-btn {
+  background: var(--surface-pill-dark);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted-lavender);
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  font-family: var(--font-body);
+}
+
+.settings-toggle-btn--active {
+  background: var(--accent-gold);
+  color: #1A1000;
+  border-color: transparent;
+}

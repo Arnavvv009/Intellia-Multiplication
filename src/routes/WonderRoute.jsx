@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PhaseTracker      from '../components/chrome/PhaseTracker.jsx';
 import HomePill          from '../components/chrome/HomePill.jsx';
-import AudioToggleFAB    from '../components/chrome/AudioToggleFAB.jsx';
+import SettingsFAB       from '../components/chrome/SettingsFAB.jsx';
 import Mascot            from '../components/shared/Mascot.jsx';
 import HintPill          from '../components/shared/HintPill.jsx';
 import ParticleBackground from '../components/shared/ParticleBackground.jsx';
@@ -37,7 +37,7 @@ export default function WonderRoute({ state, dispatch }) {
 
   return (
     <div className="vp-shell">
-      <ParticleBackground />
+      <ParticleBackground lowEndMode={state.lowEndMode} />
       <div className="vp-chrome">
         <HomePill dispatch={dispatch} />
         <PhaseTracker currentPhase="wonder" phaseComplete={state.phaseComplete} />
@@ -64,9 +64,10 @@ export default function WonderRoute({ state, dispatch }) {
         </button>
       </div>
 
-      <AudioToggleFAB
+      <SettingsFAB
         audioEnabled={state.audioEnabled}
-        onToggle={() => dispatch({ type: 'TOGGLE_AUDIO' })}
+        lowEndMode={state.lowEndMode}
+        dispatch={dispatch}
       />
     </div>
   );

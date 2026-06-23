@@ -22,7 +22,7 @@ export default function LandingRoute({ state, dispatch }) {
   return (
     /* Full-viewport, no scroll */
     <div className="landing-screen">
-      <ParticleBackground />
+      <ParticleBackground lowEndMode={state.lowEndMode} />
 
       <div className="landing-card">
         {/* Badge */}

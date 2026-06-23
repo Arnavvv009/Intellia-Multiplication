@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate }        from 'react-router-dom';
 import PhaseTracker           from '../components/chrome/PhaseTracker.jsx';
 import HomePill               from '../components/chrome/HomePill.jsx';
-import AudioToggleFAB         from '../components/chrome/AudioToggleFAB.jsx';
+import SettingsFAB            from '../components/chrome/SettingsFAB.jsx';
 import ParticleBackground     from '../components/shared/ParticleBackground.jsx';
 import { WORLDS }             from '../data/worldMap.js';
 import { calcStars, starsDisplay } from '../utils/scoring.js';
@@ -470,7 +470,7 @@ export default function PlayRoute({ state, dispatch }) {
 
   return (
     <div className="vp-shell">
-      <ParticleBackground />
+      <ParticleBackground lowEndMode={state.lowEndMode} />
 
       {/* Chrome */}
       <div className="vp-chrome">
@@ -493,9 +493,10 @@ export default function PlayRoute({ state, dispatch }) {
         {sub === 'worldComplete'&& <WorldCompleteModal state={state} dispatch={dispatch} navigate={navigate} />}
       </div>
 
-      <AudioToggleFAB
+      <SettingsFAB
         audioEnabled={state.audioEnabled}
-        onToggle={() => dispatch({ type: 'TOGGLE_AUDIO' })}
+        lowEndMode={state.lowEndMode}
+        dispatch={dispatch}
       />
     </div>
   );

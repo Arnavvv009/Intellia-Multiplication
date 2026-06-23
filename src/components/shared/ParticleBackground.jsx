@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 
 const PARTICLE_COUNT = 22;
 
-export default function ParticleBackground({ intense = false }) {
+export default function ParticleBackground({ intense = false, lowEndMode = false }) {
+  if (lowEndMode) return null;
   const particles = useMemo(() => {
     return Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
       id: i,

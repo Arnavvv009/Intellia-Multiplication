@@ -30,9 +30,12 @@ const VOICE_SETTINGS = {
 };
 
 // ── Module-level state ────────────────────────────────────────────────────────
-let _audioEnabled  = true;
-let _currentQueue  = null;        // Symbol — invalidated on every stopNarration()
-let _activeAudio   = null;        // The single <Audio> element currently playing
+let _audioEnabled   = true;
+let _lowEndMode     = false;
+let _currentQueue   = null;        // Symbol — invalidated on every stopNarration()
+let _activeAudio    = null;        // The single <Audio> element currently playing
+let _audioElement   = null;        // Cached single Audio element to avoid leak/bloat
+let _sharedAudioContext = null;    // Cached AudioContext pool
 const _dynamicCache = new Map();  // ElevenLabs blob URL cache
 
 // ── Segment constructors ──────────────────────────────────────────────────────
@@ -53,10 +56,19 @@ export function stopNarration() {
   if (_activeAudio) {
     try {
       _activeAudio.pause();
-      _activeAudio.src = '';
+      _activeAudio.removeAttribute('src');
+      _activeAudio.load();
     } catch { /* ignore */ }
     _activeAudio = null;
   }
+
+  // 3. Halt browser-level speech synthesis
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch { /* ignore */ }
+  }
+  window._activeUtterance = null;
 }
 
 // ── setAudioEnabled — called by the toggle button ────────────────────────────
@@ -64,6 +76,11 @@ export function setAudioEnabled(val) {
   _audioEnabled = val;
   // When toggling OFF: kill everything immediately
   if (!val) stopNarration();
+}
+
+// ── setLowEndMode — disables network-heavy requests ─────────────────────────
+export function setLowEndMode(val) {
+  _lowEndMode = val;
 }
 
 // ── PRIORITY 1: local audioMap lookup ────────────────────────────────────────
@@ -77,7 +94,6 @@ async function fetchElevenLabs(text, style) {
   if (_dynamicCache.has(text)) return _dynamicCache.get(text);
 
   const settings = VOICE_SETTINGS[style] || VOICE_SETTINGS.statement;
-  // Access Vite env safely — works in browser bundle, gracefully undefined in SSR
   const apiKey = import.meta.env?.VITE_ELEVENLABS_API_KEY || '';
 
   // A. Try server-side proxy (hides API key, avoids CORS)
@@ -128,35 +144,115 @@ async function fetchElevenLabs(text, style) {
 export async function getAudioUrl(text, style = 'statement') {
   const local = getLocalUrl(text);
   if (local) return local;
+  if (_lowEndMode) return null; // Skip ElevenLabs network fetches on low-spec systems
   return fetchElevenLabs(text, style);  // may return null → Web Speech
 }
 
 // non-blocking preload
 export function preloadAudio(text, style = 'statement') {
+  if (_lowEndMode) return; // Avoid preloading network calls on low-spec systems
   getAudioUrl(text, style).catch(() => {});
 }
 
 // ── Playback helpers ──────────────────────────────────────────────────────────
+function getAudioElement() {
+  if (!_audioElement && typeof window !== 'undefined') {
+    _audioElement = new Audio();
+  }
+  return _audioElement;
+}
+
 function playAudioFile(url, queueId) {
   return new Promise((resolve) => {
     if (_currentQueue !== queueId) { resolve(); return; }
-    const audio = new Audio(url);
+    const audio = getAudioElement();
+    if (!audio) { resolve(); return; }
+
+    try {
+      audio.pause();
+    } catch { /* ignore */ }
+
     _activeAudio = audio;
+    audio.src = url;
+
     const finish = () => {
-      if (_activeAudio === audio) _activeAudio = null;
+      if (_activeAudio === audio) {
+        _activeAudio = null;
+        try {
+          audio.removeAttribute('src');
+          audio.load();
+        } catch { /* ignore */ }
+      }
+      audio.onended = null;
+      audio.onerror = null;
       resolve();
     };
+
     audio.onended  = finish;
     audio.onerror  = finish;
     audio.play().catch(finish);
   });
 }
 
+// ── Web Speech API Fallback ──────────────────────────────────────────────────
+function playWebSpeech(text, queueId) {
+  return new Promise((resolve) => {
+    if (_currentQueue !== queueId) { resolve(); return; }
+    if (typeof window === 'undefined' || !window.speechSynthesis) { resolve(); return; }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    // Find standard English speech voice, female if possible
+    try {
+      const voices = window.speechSynthesis.getVoices();
+      const englishVoice = voices.find(v => v.lang.startsWith('en-') && v.name.toLowerCase().includes('female'))
+                         || voices.find(v => v.lang.startsWith('en-'))
+                         || voices[0];
+      if (englishVoice) {
+        utterance.voice = englishVoice;
+      }
+    } catch { /* ignore voice search failures */ }
+
+    // Retain global reference to avoid garbage collection interruption
+    window._activeUtterance = utterance;
+
+    const finish = () => {
+      window._activeUtterance = null;
+      resolve();
+    };
+
+    utterance.onend = finish;
+    utterance.onerror = finish;
+
+    // Safety timeout (Web Speech synthesis can occasionally hang in some browsers)
+    const safetyTimer = setTimeout(() => {
+      if (window._activeUtterance === utterance) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch { /* ignore */ }
+        finish();
+      }
+    }, 12000);
+
+    const originalOnEnd = utterance.onend;
+    utterance.onend = () => {
+      clearTimeout(safetyTimer);
+      originalOnEnd();
+    };
+    const originalOnError = utterance.onerror;
+    utterance.onerror = () => {
+      clearTimeout(safetyTimer);
+      originalOnError();
+    };
+
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
 // ── Main narrate() ────────────────────────────────────────────────────────────
 /**
  * narrate(segments, interrupt?)
- * Plays segments sequentially using local MP3 → ElevenLabs only.
- * If no audio URL is available the segment is silently skipped.
+ * Plays segments sequentially using local MP3 → ElevenLabs → Web Speech API.
  */
 export async function narrate(segments, interrupt = true) {
   if (!_audioEnabled) return;
@@ -177,17 +273,35 @@ export async function narrate(segments, interrupt = true) {
 
     if (url) {
       await playAudioFile(url, queueId);
+    } else {
+      // Bypassed/failed ElevenLabs → speak using local SpeechSynthesis API
+      await playWebSpeech(text, queueId);
     }
-    // No URL → segment silently skipped (no browser fallback)
 
     if (segs[i + 1]) preloadAudio(segs[i + 1].text, segs[i + 1].style);
   }
 }
 
+// ── Sound Context Pool ───────────────────────────────────────────────────────
+function getAudioContext() {
+  if (!_sharedAudioContext && typeof window !== 'undefined') {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      _sharedAudioContext = new AudioContextClass();
+    }
+  }
+  if (_sharedAudioContext && _sharedAudioContext.state === 'suspended') {
+    _sharedAudioContext.resume().catch(() => {});
+  }
+  return _sharedAudioContext;
+}
+
 // ── Sound effects (Web Audio API — not affected by audio toggle) ──────────────
 function playTone(freqs, durs) {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
     freqs.forEach((freq, i) => {
       const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
